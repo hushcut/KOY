@@ -20,6 +20,16 @@ sudo -u koy bash -c "cd '${APP_DIR}/backend' && .venv/bin/python -m app.seed"
 sudo -u koy bash -c "cd '${APP_DIR}/frontend' && npm ci"
 sudo -u koy bash -c "cd '${APP_DIR}/frontend' && npm run build"
 
+FRONTEND_ORIGIN="$(sed -n 's/^FRONTEND_ORIGIN=//p' "${APP_DIR}/backend/.env" | head -n 1)"
+KOY_HOST="${FRONTEND_ORIGIN#*://}"
+KOY_HOST="${KOY_HOST%%/*}"
+if [[ -z "${KOY_HOST}" ]]; then
+  echo "Could not determine the public host from backend/.env"
+  exit 1
+fi
+
+sed "s/__DOMAIN__/${KOY_HOST}/g" "${APP_DIR}/deploy/nginx/koy.conf" > /etc/nginx/sites-available/koy
+nginx -t
 systemctl restart koy-backend koy-frontend
 systemctl reload nginx
 

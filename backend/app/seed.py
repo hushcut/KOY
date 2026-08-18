@@ -19,22 +19,22 @@ PRODUCTS = [
         "heritage": [
             {
                 "topic": HeritageTopic.MATERIAL,
-                "title": "비세토스 모노그램 캔버스",
-                "content": "제품의 바디에는 비세토스 모노그램 캔버스를 사용하고 가죽 트리밍과 24K 금도금 황동 하드웨어를 더했습니다.",
+                "title": "비세토스 캔버스와 가죽 디테일",
+                "content": "제품의 바디에는 비세토스 모노그램 캔버스를 사용하고 가죽 트리밍과 24K 금도금 황동 하드웨어를 더했습니다. 내부는 스웨이드 마감의 마이크로파이버 안감으로 구성됩니다.",
                 "source_title": "MCM 공식 제품 페이지",
                 "source_url": "https://us.mcmworldwide.com/en_US/women/bags/top-handle-bags/ella-boston-bag-in-visetos/MWBFAEA01CO001.html",
             },
             {
                 "topic": HeritageTopic.CRAFTSMANSHIP,
-                "title": "여행을 위한 정교한 구성",
-                "content": "가죽 상단 손잡이, 탈착 및 길이 조절이 가능한 스트랩, 양방향 지퍼, 내부 포켓과 카드 슬롯으로 구성됩니다.",
+                "title": "사용성과 수납을 고려한 구성",
+                "content": "가죽 상단 손잡이와 탈착 및 길이 조절이 가능한 가죽 스트랩, 양방향 지퍼 여밈을 갖췄습니다. 내부에는 포켓과 카드 슬롯이 있으며 바이에른 다이아몬드 가죽 참은 분리할 수 있습니다.",
                 "source_title": "MCM 공식 제품 페이지",
                 "source_url": "https://us.mcmworldwide.com/en_US/women/bags/top-handle-bags/ella-boston-bag-in-visetos/MWBFAEA01CO001.html",
             },
             {
                 "topic": HeritageTopic.BRAND_HISTORY,
-                "title": "뮌헨 여행 문화에서 온 실루엣",
-                "content": "Ella Boston Bag은 뮌헨의 황금기 여행용 트렁크에서 영감을 받았으며, 바이에른 다이아몬드를 본뜬 가죽 참으로 그 배경을 표현합니다.",
+                "title": "뮌헨 황금기 여행 문화에서 온 디자인",
+                "content": "Ella Boston Bag은 뮌헨 황금기의 여행용 트렁크를 본떠 디자인했습니다. 로고가 음각된 탈착식 가죽 참은 바이에른 다이아몬드에서 영감을 받았습니다.",
                 "source_title": "MCM 공식 제품 페이지",
                 "source_url": "https://us.mcmworldwide.com/en_US/women/bags/top-handle-bags/ella-boston-bag-in-visetos/MWBFAEA01CO001.html",
             },
