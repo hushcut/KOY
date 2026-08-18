@@ -34,24 +34,33 @@ def _context(items: list[HeritageContent]) -> str:
 
 def _json_response(instructions: str, prompt: str, schema_name: str, schema: dict) -> dict:
     client = OpenAI(api_key=settings.openai_api_key)
-    response = client.responses.create(
-        model=settings.openai_model,
-        instructions=instructions,
-        input=prompt,
-        max_output_tokens=1600,
-        text={
-            "format": {
-                "type": "json_schema",
-                "name": schema_name,
-                "schema": schema,
-                "strict": True,
-            }
-        },
-    )
-    text = response.output_text.strip()
-    if text.startswith("```"):
-        text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-    return json.loads(text)
+    last_error: json.JSONDecodeError | None = None
+    for max_output_tokens in (2400, 4000):
+        response = client.responses.create(
+            model=settings.openai_model,
+            instructions=instructions,
+            input=prompt,
+            max_output_tokens=max_output_tokens,
+            reasoning={"effort": "low"},
+            text={
+                "format": {
+                    "type": "json_schema",
+                    "name": schema_name,
+                    "schema": schema,
+                    "strict": True,
+                }
+            },
+        )
+        text = response.output_text.strip()
+        if text.startswith("```"):
+            text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            last_error = exc
+
+    assert last_error is not None
+    raise last_error
 
 
 def generate_story(
