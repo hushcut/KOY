@@ -10,9 +10,9 @@ APP_DIR="/opt/koy/app"
 REPOSITORY_URL="${REPOSITORY_URL:-https://github.com/hushcut/KOY.git}"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-integration}"
 
-read -r -p "Public domain (example: koy.example.com): " KOY_DOMAIN
-if [[ -z "${KOY_DOMAIN}" || "${KOY_DOMAIN}" == *"/"* || "${KOY_DOMAIN}" == *" "* ]]; then
-  echo "Enter a hostname only, without https:// or a path."
+read -r -p "Public host (domain or IP, example: 1.201.116.192): " KOY_HOST
+if [[ -z "${KOY_HOST}" || "${KOY_HOST}" == *"/"* || "${KOY_HOST}" == *" "* ]]; then
+  echo "Enter a hostname or IP only, without http://, https://, or a path."
   exit 1
 fi
 
@@ -47,11 +47,11 @@ cat > "${APP_DIR}/backend/.env" <<EOF
 DATABASE_URL=postgresql+psycopg://koy_user:${DB_PASSWORD}@127.0.0.1:5432/koy
 OPENAI_API_KEY=${OPENAI_API_KEY}
 OPENAI_MODEL=gpt-5-mini
-FRONTEND_ORIGIN=https://${KOY_DOMAIN}
+FRONTEND_ORIGIN=http://${KOY_HOST}
 EOF
 
 cat > "${APP_DIR}/frontend/.env.production" <<EOF
-NEXT_PUBLIC_API_URL=https://${KOY_DOMAIN}/api
+NEXT_PUBLIC_API_URL=/api
 EOF
 
 chown koy:koy "${APP_DIR}/backend/.env" "${APP_DIR}/frontend/.env.production"
@@ -68,7 +68,7 @@ sudo -u koy bash -c "cd '${APP_DIR}/frontend' && npm run build"
 
 install -m 0644 "${APP_DIR}/deploy/systemd/koy-backend.service" /etc/systemd/system/koy-backend.service
 install -m 0644 "${APP_DIR}/deploy/systemd/koy-frontend.service" /etc/systemd/system/koy-frontend.service
-sed "s/__DOMAIN__/${KOY_DOMAIN}/g" "${APP_DIR}/deploy/nginx/koy.conf" > /etc/nginx/sites-available/koy
+sed "s/__DOMAIN__/${KOY_HOST}/g" "${APP_DIR}/deploy/nginx/koy.conf" > /etc/nginx/sites-available/koy
 ln -sfn /etc/nginx/sites-available/koy /etc/nginx/sites-enabled/koy
 rm -f /etc/nginx/sites-enabled/default
 
@@ -77,5 +77,5 @@ systemctl daemon-reload
 systemctl enable --now koy-backend koy-frontend
 systemctl reload nginx
 
-echo "HTTP deployment complete. Confirm DNS points to this server, then run:"
-echo "sudo certbot --nginx -d ${KOY_DOMAIN} --redirect"
+echo "HTTP deployment complete: http://${KOY_HOST}"
+echo "If you connect a domain later, update FRONTEND_ORIGIN and enable HTTPS with certbot."

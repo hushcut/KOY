@@ -6,7 +6,7 @@
 
 - Ubuntu 서버
 - 공인 IP 1개
-- 공인 IP를 가리키는 도메인 또는 서브도메인
+- 공인 IP (도메인은 선택 사항)
 - 보안그룹 TCP 22, 80, 443
 - OpenAI API 키
 
@@ -37,7 +37,15 @@ sudo bash deploy/scripts/01-bootstrap-ubuntu.sh
 
 설치 후 Node.js 20 이상, Python, PostgreSQL, Nginx가 표시되는지 확인합니다.
 
-## 5. DNS 연결
+## 5. 접속 주소 결정
+
+도메인이 없다면 서버 공인 IP를 그대로 사용합니다.
+
+```text
+예: 1.201.116.192
+```
+
+도메인이 있다면 DNS에 A 레코드를 추가합니다.
 
 도메인 DNS에 A 레코드를 추가합니다.
 
@@ -58,7 +66,7 @@ getent hosts YOUR_DOMAIN
 sudo bash deploy/scripts/02-first-deploy.sh
 ```
 
-스크립트가 도메인과 OpenAI API 키를 요청합니다. API 키는 화면에 표시되지 않으며 `/opt/koy/app/backend/.env`에 권한 600으로 저장됩니다.
+스크립트가 공인 호스트(도메인 또는 IP)와 OpenAI API 키를 요청합니다. IP로 배포할 때는 `1.201.116.192`처럼 프로토콜 없이 입력합니다. API 키는 화면에 표시되지 않으며 `/opt/koy/app/backend/.env`에 권한 600으로 저장됩니다.
 
 스크립트가 자동으로 수행하는 작업:
 
@@ -71,16 +79,16 @@ sudo bash deploy/scripts/02-first-deploy.sh
 - systemd 서비스 설치
 - Nginx 리버스 프록시 설치
 
-## 7. HTTPS 적용
+## 7. HTTPS 적용 (도메인이 있을 때만)
 
-DNS 연결과 HTTP 접속을 확인한 다음 실행합니다.
+공인 IP만 사용할 때는 이 단계를 건너뜁니다. 도메인을 연결한 경우에만 DNS와 HTTP 접속을 확인한 다음 실행합니다.
 
 ```bash
 sudo certbot --nginx -d YOUR_DOMAIN --redirect
 sudo certbot renew --dry-run
 ```
 
-HTTPS 적용 후 휴대전화에서 QR 카메라를 확인합니다.
+브라우저 카메라는 보안 컨텍스트(HTTPS 또는 localhost)에서만 허용되므로 공인 IP의 HTTP 접속에서는 QR 카메라가 제한될 수 있습니다. 이 경우 앱의 `시연 제품으로 계속하기` 버튼을 사용합니다.
 
 ## 8. 상태 확인
 
@@ -90,7 +98,7 @@ sudo systemctl status koy-frontend --no-pager
 sudo nginx -t
 curl http://127.0.0.1:8000/health
 curl -I http://127.0.0.1:3000
-curl -I https://YOUR_DOMAIN
+curl -I http://YOUR_HOST
 ```
 
 로그 확인:
