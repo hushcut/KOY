@@ -32,13 +32,21 @@ def _context(items: list[HeritageContent]) -> str:
     )
 
 
-def _json_response(instructions: str, prompt: str) -> dict:
+def _json_response(instructions: str, prompt: str, schema_name: str, schema: dict) -> dict:
     client = OpenAI(api_key=settings.openai_api_key)
     response = client.responses.create(
         model=settings.openai_model,
         instructions=instructions,
         input=prompt,
-        max_output_tokens=800,
+        max_output_tokens=1600,
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": schema_name,
+                "schema": schema,
+                "strict": True,
+            }
+        },
     )
     text = response.output_text.strip()
     if text.startswith("```"):
@@ -63,6 +71,20 @@ def generate_story(
 자료에 없는 사실은 추측하거나 추가하지 마세요. 모바일에서 읽기 쉬운 간결한 문장으로 작성하세요.
 반드시 JSON만 반환하세요: {"title":"", "story":"", "suggestedQuestions":["",""]}""",
         f"제품: {product_name}\n관심 주제: {interest.value}\n\n공식 자료:\n{_context(items)}",
+        "docent_story",
+        {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "story": {"type": "string"},
+                "suggestedQuestions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+            },
+            "required": ["title", "story", "suggestedQuestions"],
+            "additionalProperties": False,
+        },
     )
     return StoryResult(
         title=str(data["title"]),
@@ -86,6 +108,24 @@ def answer_question(
 usedSourceIds에는 실제 답변 근거로 사용한 자료 ID만 넣으세요. 반드시 JSON만 반환하세요:
 {{"answer":"", "grounded":true, "usedSourceIds":[""], "suggestedQuestions":[""]}}""",
         f"공식 자료:\n{_context(items)}\n\n최근 대화:\n{history_text}\n\n현재 질문: {question}",
+        "docent_answer",
+        {
+            "type": "object",
+            "properties": {
+                "answer": {"type": "string"},
+                "grounded": {"type": "boolean"},
+                "usedSourceIds": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "suggestedQuestions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+            },
+            "required": ["answer", "grounded", "usedSourceIds", "suggestedQuestions"],
+            "additionalProperties": False,
+        },
     )
     known_ids = {item.id for item in items}
     used_ids = [str(item_id) for item_id in data.get("usedSourceIds", []) if str(item_id) in known_ids]

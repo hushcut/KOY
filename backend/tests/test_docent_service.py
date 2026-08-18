@@ -17,7 +17,7 @@ def test_refusal_is_never_marked_grounded(monkeypatch):
     monkeypatch.setattr(
         docent_service,
         "_json_response",
-        lambda instructions, prompt: {
+        lambda instructions, prompt, schema_name, schema: {
             "answer": docent_service.UNGROUNDED_ANSWER,
             "grounded": True,
             "usedSourceIds": [item.id],
