@@ -32,6 +32,23 @@ def _context(items: list[HeritageContent]) -> str:
     )
 
 
+def _grounded_questions(items: list[HeritageContent], limit: int = 3) -> list[str]:
+    topic_labels = {
+        HeritageTopic.MATERIAL: "소재",
+        HeritageTopic.CRAFTSMANSHIP: "제작·구성",
+        HeritageTopic.BRAND_HISTORY: "브랜드 이야기",
+    }
+    questions: list[str] = []
+    for item in items:
+        questions.extend(
+            [
+                f"{item.title}에 대해 알려주세요.",
+                f"이 제품의 {topic_labels[item.topic]}에서 공식 자료로 확인되는 특징은 무엇인가요?",
+            ]
+        )
+    return list(dict.fromkeys(questions))[:limit]
+
+
 def _json_response(instructions: str, prompt: str, schema_name: str, schema: dict) -> dict:
     client = OpenAI(api_key=settings.openai_api_key)
     last_error: json.JSONDecodeError | None = None
@@ -78,7 +95,7 @@ def generate_story(
     data = _json_response(
         """당신은 제품 헤리티지 도슨트입니다. 제공된 공식 자료만 사용해 한국어로 답하세요.
 자료에 없는 사실은 추측하거나 추가하지 마세요. 모바일에서 읽기 쉬운 간결한 문장으로 작성하세요.
-반드시 JSON만 반환하세요: {"title":"", "story":"", "suggestedQuestions":["",""]}""",
+반드시 JSON만 반환하세요: {"title":"", "story":""}""",
         f"제품: {product_name}\n관심 주제: {interest.value}\n\n공식 자료:\n{_context(items)}",
         "docent_story",
         {
@@ -86,19 +103,15 @@ def generate_story(
             "properties": {
                 "title": {"type": "string"},
                 "story": {"type": "string"},
-                "suggestedQuestions": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                },
             },
-            "required": ["title", "story", "suggestedQuestions"],
+            "required": ["title", "story"],
             "additionalProperties": False,
         },
     )
     return StoryResult(
         title=str(data["title"]),
         story=str(data["story"]),
-        suggested_questions=[str(question) for question in data.get("suggestedQuestions", [])][:3],
+        suggested_questions=_grounded_questions(items),
     )
 
 
@@ -115,7 +128,7 @@ def answer_question(
         f"""당신은 제품 헤리티지 도슨트입니다. 공식 자료만 근거로 한국어로 답하세요.
 자료에서 확인할 수 없는 내용은 추측하지 말고 정확히 '{UNGROUNDED_ANSWER}'라고 답하세요.
 usedSourceIds에는 실제 답변 근거로 사용한 자료 ID만 넣으세요. 반드시 JSON만 반환하세요:
-{{"answer":"", "grounded":true, "usedSourceIds":[""], "suggestedQuestions":[""]}}""",
+{{"answer":"", "grounded":true, "usedSourceIds":[""]}}""",
         f"공식 자료:\n{_context(items)}\n\n최근 대화:\n{history_text}\n\n현재 질문: {question}",
         "docent_answer",
         {
@@ -127,12 +140,8 @@ usedSourceIds에는 실제 답변 근거로 사용한 자료 ID만 넣으세요.
                     "type": "array",
                     "items": {"type": "string"},
                 },
-                "suggestedQuestions": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                },
             },
-            "required": ["answer", "grounded", "usedSourceIds", "suggestedQuestions"],
+            "required": ["answer", "grounded", "usedSourceIds"],
             "additionalProperties": False,
         },
     )
@@ -147,7 +156,7 @@ usedSourceIds에는 실제 답변 근거로 사용한 자료 ID만 넣으세요.
     return AnswerResult(
         answer=raw_answer if grounded else UNGROUNDED_ANSWER,
         grounded=grounded,
-        suggested_questions=[str(value) for value in data.get("suggestedQuestions", [])][:3] if grounded else [],
+        suggested_questions=_grounded_questions(items) if grounded else [],
         used_source_ids=used_ids if grounded else [],
     )
 
