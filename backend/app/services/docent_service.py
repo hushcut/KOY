@@ -89,9 +89,14 @@ usedSourceIds에는 실제 답변 근거로 사용한 자료 ID만 넣으세요.
     )
     known_ids = {item.id for item in items}
     used_ids = [str(item_id) for item_id in data.get("usedSourceIds", []) if str(item_id) in known_ids]
-    grounded = bool(data.get("grounded")) and bool(used_ids)
+    raw_answer = str(data.get("answer") or UNGROUNDED_ANSWER).strip()
+    grounded = (
+        bool(data.get("grounded"))
+        and bool(used_ids)
+        and UNGROUNDED_ANSWER not in raw_answer
+    )
     return AnswerResult(
-        answer=str(data.get("answer") or UNGROUNDED_ANSWER) if grounded else UNGROUNDED_ANSWER,
+        answer=raw_answer if grounded else UNGROUNDED_ANSWER,
         grounded=grounded,
         suggested_questions=[str(value) for value in data.get("suggestedQuestions", [])][:3] if grounded else [],
         used_source_ids=used_ids if grounded else [],
