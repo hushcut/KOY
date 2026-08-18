@@ -9,7 +9,7 @@ export type Product = {
   imageUrl: string;
 };
 
-export type ProductSummary = Omit<Product, "qrValue">;
+export type ProductSummary = Product;
 
 export type HeritageItem = {
   id: string;

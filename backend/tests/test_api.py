@@ -1,16 +1,20 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 
-client = TestClient(app)
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 # ---------------------------------------------------------
 # 1. Health Check
 # ---------------------------------------------------------
 
-def test_health():
+def test_health(client):
     response = client.get("/health")
 
     assert response.status_code == 200
@@ -23,7 +27,7 @@ def test_health():
 # 2. QR 제품 조회 성공
 # ---------------------------------------------------------
 
-def test_product_by_qr():
+def test_product_by_qr(client):
     response = client.get(
         "/products/by-qr/KOY-001"
     )
@@ -33,7 +37,7 @@ def test_product_by_qr():
     data = response.json()
 
     assert data["qrValue"] == "KOY-001"
-    assert data["brandName"] == "KOY"
+    assert data["brandName"] == "MCM"
     assert "id" in data
     assert "productName" in data
 
@@ -42,7 +46,7 @@ def test_product_by_qr():
 # 3. 존재하지 않는 QR
 # ---------------------------------------------------------
 
-def test_product_not_found():
+def test_product_not_found(client):
     response = client.get(
         "/products/by-qr/NOT-EXIST"
     )
@@ -60,11 +64,11 @@ def test_product_not_found():
 # 4. 제품 검색
 # ---------------------------------------------------------
 
-def test_search_products():
+def test_search_products(client):
     response = client.get(
         "/products/search",
         params={
-            "q": "KOY"
+            "q": "MCM"
         },
     )
 
@@ -73,14 +77,15 @@ def test_search_products():
     data = response.json()
 
     assert "items" in data
-    assert len(data["items"]) >= 3
+    assert len(data["items"]) >= 1
+    assert "qrValue" in data["items"][0]
 
 
 # ---------------------------------------------------------
 # 5. 검색 결과 없음
 # ---------------------------------------------------------
 
-def test_search_no_results():
+def test_search_no_results(client):
     response = client.get(
         "/products/search",
         params={
@@ -99,7 +104,7 @@ def test_search_no_results():
 # 6. 잘못된 interest
 # ---------------------------------------------------------
 
-def test_invalid_interest():
+def test_invalid_interest(client):
     product_response = client.get(
         "/products/by-qr/KOY-001"
     )
@@ -129,7 +134,7 @@ def test_invalid_interest():
 # 7. 없는 세션
 # ---------------------------------------------------------
 
-def test_session_not_found():
+def test_session_not_found(client):
     response = client.post(
         "/docent/sessions/"
         "not-existing-session/messages",
@@ -151,7 +156,7 @@ def test_session_not_found():
 # 8. 빈 질문
 # ---------------------------------------------------------
 
-def test_invalid_empty_question():
+def test_invalid_empty_question(client):
     product_response = client.get(
         "/products/by-qr/KOY-001"
     )
@@ -194,7 +199,7 @@ def test_invalid_empty_question():
 # 9. 근거 부족 질문
 # ---------------------------------------------------------
 
-def test_ungrounded_answer():
+def test_ungrounded_answer(client):
     product_response = client.get(
         "/products/by-qr/KOY-001"
     )

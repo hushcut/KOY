@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.models import (
     Product,
@@ -16,6 +17,7 @@ from app.models.models import (
     DocentMessage,
     MessageRole,
 )
+from app.services.docent_service import answer_question, generate_story
 
 
 # =========================================================
@@ -34,9 +36,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-    ],
+    allow_origins=settings.frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -233,6 +233,7 @@ def search_products(
         "items": [
             {
                 "id": product.id,
+                "qrValue": product.qr_value,
                 "brandName": product.brand_name,
                 "productName": product.product_name,
                 "summary": product.summary,
@@ -341,26 +342,19 @@ def create_docent_story(
     db.commit()
     db.refresh(docent_session)
 
-    # OpenAI 연동 전 임시 구현
-    story = " ".join(
-        item.content
-        for item in heritage_items
-    )
-
-    suggested_questions_map = {
-        HeritageTopic.MATERIAL: [
-            "이 소재의 특징은 무엇인가요?",
-            "시간이 지나면 소재는 어떻게 변하나요?",
-        ],
-        HeritageTopic.CRAFTSMANSHIP: [
-            "제작 과정에서 중요한 단계는 무엇인가요?",
-            "장인의 작업 방식에는 어떤 특징이 있나요?",
-        ],
-        HeritageTopic.BRAND_HISTORY: [
-            "이 브랜드는 어떻게 시작되었나요?",
-            "브랜드가 중요하게 생각하는 가치는 무엇인가요?",
-        ],
-    }
+    try:
+        generated = generate_story(
+            product_name=product.product_name,
+            interest=request.interest,
+            items=heritage_items,
+        )
+    except Exception as exc:
+        print(f"AI story generation failed: {exc}")
+        raise APIError(
+            status_code=503,
+            code="AI_SERVICE_ERROR",
+            message="도슨트 스토리를 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        ) from exc
 
     sources = [
         {
@@ -372,10 +366,9 @@ def create_docent_story(
 
     return {
         "sessionId": docent_session.id,
-        "title": heritage_items[0].title,
-        "story": story,
-        "suggestedQuestions":
-            suggested_questions_map[request.interest],
+        "title": generated.title,
+        "story": generated.story,
+        "suggestedQuestions": generated.suggested_questions,
         "sources": sources,
     }
 
@@ -424,89 +417,40 @@ def ask_docent(
         )
     ).all()
 
-    question = request.question.lower()
+    db.flush()
+    previous_messages = db.scalars(
+        select(DocentMessage).where(
+            DocentMessage.session_id == session_id,
+        ).order_by(DocentMessage.created_at)
+    ).all()
 
-    # OpenAI 연동 전 임시 키워드 방식
-    keyword_map = {
-        HeritageTopic.MATERIAL: [
-            "소재",
-            "재료",
-            "가죽",
-            "질감",
-            "색",
-            "표면",
-            "변화",
-        ],
-        HeritageTopic.CRAFTSMANSHIP: [
-            "제작",
-            "공정",
-            "장인",
-            "작업",
-            "마감",
-            "만들",
-        ],
-        HeritageTopic.BRAND_HISTORY: [
-            "브랜드",
-            "역사",
-            "시작",
-            "철학",
-            "가치",
-            "유래",
-        ],
-    }
-
-    matched_items = []
-
-    for item in heritage_items:
-        keywords = keyword_map.get(
-            item.topic,
-            [],
+    try:
+        generated = answer_question(
+            question=request.question,
+            items=heritage_items,
+            history=[(message.role.value, message.content) for message in previous_messages],
         )
+    except Exception as exc:
+        db.rollback()
+        print(f"AI answer generation failed: {exc}")
+        raise APIError(
+            status_code=503,
+            code="AI_SERVICE_ERROR",
+            message="도슨트 답변을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        ) from exc
 
-        if any(
-            keyword in question
-            for keyword in keywords
-        ):
-            matched_items.append(item)
-
-    # 근거 있음
-    if matched_items:
-        answer = " ".join(
-            item.content
-            for item in matched_items
-        )
-
-        grounded = True
-
-        sources = [
-            {
-                "title": item.source_title,
-                "url": item.source_url,
-            }
-            for item in matched_items
-        ]
-
-        suggested_questions = [
-            "이 제품의 다른 헤리티지도 알려주세요."
-        ]
-
-    # 근거 없음
-    else:
-        answer = (
-            "현재 등록된 공식 자료만으로는 "
-            "정확히 답변하기 어렵습니다."
-        )
-
-        grounded = False
-        sources = []
-        suggested_questions = []
+    used_items = [item for item in heritage_items if item.id in generated.used_source_ids]
+    sources = [
+        {"title": item.source_title, "url": item.source_url}
+        for item in used_items
+    ]
 
     # assistant 답변 저장
     assistant_message = DocentMessage(
         session_id=session_id,
         role=MessageRole.ASSISTANT,
-        content=answer,
-        grounded=grounded,
+        content=generated.answer,
+        grounded=generated.grounded,
     )
 
     db.add(assistant_message)
@@ -515,8 +459,8 @@ def ask_docent(
 
     return {
         "messageId": assistant_message.id,
-        "answer": answer,
-        "grounded": grounded,
+        "answer": generated.answer,
+        "grounded": generated.grounded,
         "sources": sources,
-        "suggestedQuestions": suggested_questions,
+        "suggestedQuestions": generated.suggested_questions,
     }

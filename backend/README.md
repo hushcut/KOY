@@ -11,7 +11,7 @@ KOY 제품 헤리티지 도슨트 서비스의 FastAPI 백엔드입니다.
 - Alembic
 - Pydantic
 - pytest
-- OpenAI API 예정
+- OpenAI Responses API
 
 ## 실행 방법
 
@@ -53,6 +53,8 @@ FRONTEND_ORIGIN=http://localhost:3000
 ```
 
 실제 DB 사용자명과 비밀번호에 맞게 수정합니다.
+
+PostgreSQL이 준비되지 않은 로컬 시연 환경에서는 `.env`를 만들지 않으면 `sqlite:///./koy.db`가 자동으로 사용됩니다.
 
 `.env` 파일은 Git에 커밋하지 않습니다.
 
@@ -154,6 +156,10 @@ OpenAI 연동 후 아래 오류 코드가 추가될 예정입니다.
 
 제품 조회, 검색, 헤리티지 조회, 도슨트 세션 생성, 누적 Q&A, 근거 여부 판별 및 출처 반환이 구현되어 있습니다.
 
-현재 도슨트 스토리와 Q&A 생성 부분은 OpenAI API 연동 전 임시 로직으로 동작합니다.
+`OPENAI_API_KEY`가 설정되면 OpenAI Responses API를 사용하여 DB의 `PUBLISHED` 공식 헤리티지 콘텐츠와 최근 세션 대화만 기반으로 답변합니다. API 키가 없는 로컬 환경에서는 발표 및 테스트가 가능하도록 동일한 응답 계약의 근거 기반 로컬 로직으로 동작합니다.
 
-추후 OpenAI API를 연결하여 DB에 등록된 `PUBLISHED` 공식 헤리티지 콘텐츠와 현재 세션의 대화 내역만 기반으로 답변하도록 변경할 예정입니다.
+`FRONTEND_ORIGIN`에는 쉼표로 구분한 여러 주소를 입력할 수 있습니다.
+
+```env
+FRONTEND_ORIGIN=http://localhost:3000,https://your-app.vercel.app
+```

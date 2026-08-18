@@ -1,17 +1,7 @@
-import os
-
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-
-load_dotenv()
-
-
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite:///./koy.db",
-)
+from app.core.config import settings
 
 
 class Base(DeclarativeBase):
@@ -19,7 +9,7 @@ class Base(DeclarativeBase):
 
 
 engine = create_engine(
-    DATABASE_URL,
+    settings.database_url,
     pool_pre_ping=True,
 )
 

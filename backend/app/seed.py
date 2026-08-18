@@ -12,31 +12,31 @@ from app.models.models import (
 PRODUCTS = [
     {
         "qr_value": "KOY-001",
-        "brand_name": "KOY",
-        "product_name": "Heritage Bag",
-        "summary": "소재와 제작 공정의 이야기를 담은 헤리티지 백입니다.",
-        "image_url": "/images/product-1.png",
+        "brand_name": "MCM",
+        "product_name": "Ella Boston Bag in Visetos",
+        "summary": "뮌헨 여행 문화의 황금기와 트렁크 실루엣에서 영감을 받은 비세토스 보스턴백입니다.",
+        "image_url": "/figma-product-2.png",
         "heritage": [
             {
                 "topic": HeritageTopic.MATERIAL,
-                "title": "시간과 함께 깊어지는 소재",
-                "content": "이 제품은 사용할수록 표면의 색과 질감이 자연스럽게 변화하도록 설계된 소재를 사용합니다.",
-                "source_title": "KOY 공식 아카이브",
-                "source_url": "https://example.com/koy-001-material",
+                "title": "비세토스 모노그램 캔버스",
+                "content": "제품의 바디에는 비세토스 모노그램 캔버스를 사용하고 가죽 트리밍과 24K 금도금 황동 하드웨어를 더했습니다.",
+                "source_title": "MCM 공식 제품 페이지",
+                "source_url": "https://us.mcmworldwide.com/en_US/women/bags/top-handle-bags/ella-boston-bag-in-visetos/MWBFAEA01CO001.html",
             },
             {
                 "topic": HeritageTopic.CRAFTSMANSHIP,
-                "title": "손끝에서 완성되는 제작 과정",
-                "content": "주요 조립 과정과 마감 단계는 숙련된 작업자의 손을 거쳐 순차적으로 진행됩니다.",
-                "source_title": "KOY 공식 아카이브",
-                "source_url": "https://example.com/koy-001-craft",
+                "title": "여행을 위한 정교한 구성",
+                "content": "가죽 상단 손잡이, 탈착 및 길이 조절이 가능한 스트랩, 양방향 지퍼, 내부 포켓과 카드 슬롯으로 구성됩니다.",
+                "source_title": "MCM 공식 제품 페이지",
+                "source_url": "https://us.mcmworldwide.com/en_US/women/bags/top-handle-bags/ella-boston-bag-in-visetos/MWBFAEA01CO001.html",
             },
             {
                 "topic": HeritageTopic.BRAND_HISTORY,
-                "title": "KOY가 시작된 이야기",
-                "content": "KOY는 제품을 단순히 소비하는 것을 넘어 제작 배경과 이야기를 함께 전달하기 위해 시작되었습니다.",
-                "source_title": "KOY 브랜드 스토리",
-                "source_url": "https://example.com/koy-history",
+                "title": "뮌헨 여행 문화에서 온 실루엣",
+                "content": "Ella Boston Bag은 뮌헨의 황금기 여행용 트렁크에서 영감을 받았으며, 바이에른 다이아몬드를 본뜬 가죽 참으로 그 배경을 표현합니다.",
+                "source_title": "MCM 공식 제품 페이지",
+                "source_url": "https://us.mcmworldwide.com/en_US/women/bags/top-handle-bags/ella-boston-bag-in-visetos/MWBFAEA01CO001.html",
             },
         ],
     },
@@ -125,17 +125,27 @@ def seed():
 
                 db.add(product)
                 db.flush()
+            else:
+                product.brand_name = data["brand_name"]
+                product.product_name = data["product_name"]
+                product.summary = data["summary"]
+                product.image_url = data["image_url"]
 
-            existing_titles = set(
-                db.scalars(
-                    select(HeritageContent.title).where(
-                        HeritageContent.product_id == product.id
-                    )
+            existing_by_topic = {
+                heritage.topic: heritage
+                for heritage in db.scalars(
+                    select(HeritageContent).where(HeritageContent.product_id == product.id)
                 ).all()
-            )
+            }
 
             for item in data["heritage"]:
-                if item["title"] in existing_titles:
+                heritage = existing_by_topic.get(item["topic"])
+                if heritage is not None:
+                    heritage.title = item["title"]
+                    heritage.content = item["content"]
+                    heritage.source_title = item["source_title"]
+                    heritage.source_url = item["source_url"]
+                    heritage.status = HeritageStatus.PUBLISHED
                     continue
 
                 heritage = HeritageContent(

@@ -2,10 +2,10 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Bell, BookmarkSimple, Camera, CaretRight, House, PaperPlaneTilt, Sparkle, UserCircle, X } from "@phosphor-icons/react";
-import { createDocentStory, getProductByQr, getProductHeritage, sendDocentMessage } from "@/lib/api";
-import type { DocentStoryResponse, HeritageItem, HeritageTopic, Product, Source } from "@/types/api";
+import { createDocentStory, getProductByQr, getProductHeritage, searchProducts, sendDocentMessage } from "@/lib/api";
+import type { DocentStoryResponse, HeritageItem, HeritageTopic, Product, ProductSummary, Source } from "@/types/api";
 
-type Screen = "home" | "scan" | "recognizing" | "success" | "heritage" | "story" | "ask";
+type Screen = "home" | "scan" | "search" | "recognizing" | "success" | "heritage" | "story" | "ask";
 type Topic = "소재" | "장인 공정" | "브랜드 역사";
 type Message = { id: number; role: "user" | "assistant"; text: string; topic?: Topic | "근거 부족"; sources?: Source[] };
 
@@ -43,24 +43,37 @@ export default function HomePage() {
   const [story, setStory] = useState<DocentStoryResponse | null>(null);
   const [scanError, setScanError] = useState("");
 
-  const identifyProduct = async () => {
+  const loadProduct = async (identified: Product, nextScreen: Screen) => {
+    const heritageResponse = await getProductHeritage(identified.id);
+    setProduct(identified);
+    setHeritage(heritageResponse.items);
+    setScreen(nextScreen);
+  };
+
+  const identifyProduct = async (qrValue = "KOY-001") => {
     setScreen("recognizing");
     setScanError("");
     try {
-      const identified = await getProductByQr("KOY-001");
-      const heritageResponse = await getProductHeritage(identified.id);
-      setProduct(identified);
-      setHeritage(heritageResponse.items);
-      setScreen("success");
+      await loadProduct(await getProductByQr(qrValue), "success");
+    } catch (error) {
+      setScanError(errorMessage(error));
+    }
+  };
+
+  const selectSearchResult = async (selected: ProductSummary) => {
+    setScanError("");
+    try {
+      await loadProduct(selected, "heritage");
     } catch (error) {
       setScanError(errorMessage(error));
     }
   };
 
   return <main className="stage"><section className="phone" aria-live="polite">
-    {screen === "home" && <HomeScreen onScan={() => setScreen("scan")} onHeritage={identifyProduct} />}
-    {screen === "scan" && <ScanScreen onBack={() => setScreen("home")} onScan={identifyProduct} />}
-    {screen === "recognizing" && <Recognizing error={scanError} onBack={() => setScreen("home")} onRetry={identifyProduct} />}
+    {screen === "home" && <HomeScreen onScan={() => setScreen("scan")} onSearch={() => setScreen("search")} onHeritage={() => identifyProduct()} />}
+    {screen === "scan" && <ScanScreen onBack={() => setScreen("home")} onDetected={identifyProduct} />}
+    {screen === "search" && <SearchScreen onBack={() => setScreen("home")} onSelect={selectSearchResult} />}
+    {screen === "recognizing" && <Recognizing error={scanError} onBack={() => setScreen("home")} onRetry={() => identifyProduct()} />}
     {screen === "success" && product && <Success product={product} onNext={() => setScreen("heritage")} />}
     {screen === "heritage" && product && <Heritage product={product} heritage={heritage} onBack={() => setScreen("home")} onStory={() => setScreen("story")} />}
     {screen === "story" && product && <Story product={product} onBack={() => setScreen("heritage")} onAsk={(createdStory) => { setStory(createdStory); setScreen("ask"); }} />}
@@ -74,10 +87,16 @@ function Header({ back, title, light = false }: { back?: () => void; title?: str
 </header>; }
 function BottomNav() { return <nav className="bottom-nav" aria-label="하단 내비게이션"><button className="active"><House size={20}/><span>홈</span></button><button><BookmarkSimple size={20}/><span>보관함</span></button><button><UserCircle size={20}/><span>마이페이지</span></button></nav>; }
 
-function HomeScreen({ onScan, onHeritage }: { onScan: () => void; onHeritage: () => void }) { return <div className="screen cream"><Header/><div className="home-main"><div className="home-copy"><small>DISCOVER</small><h1>정교한 디자인의<br/>가치를 발견하세요</h1></div><button className="scan-orbit" onClick={onScan}><span><Camera size={32}/><b>제품 스캔하기</b></span></button><button className="text-link">또는 제품명으로 직접 검색하기</button></div><section className="recent"><small>RECENTLY VIEWED</small><h2>최근 조회한 제품</h2><div className="cards"><ProductCard image={bagImage} title="MCM 비세토스 보스턴백" date="2026. 08. 12" detail="Italy · Visetos Heritage Canvas" onClick={onHeritage}/><ProductCard image={backpackImage} title="헤리티지 에디션 스타크 백팩" date="2026. 08. 10" detail="Italy · Stark Visetos Backpack" onClick={onHeritage}/></div></section><BottomNav/></div>; }
+function HomeScreen({ onScan, onSearch, onHeritage }: { onScan: () => void; onSearch: () => void; onHeritage: () => void }) { return <div className="screen cream"><Header/><div className="home-main"><div className="home-copy"><small>DISCOVER</small><h1>정교한 디자인의<br/>가치를 발견하세요</h1></div><button className="scan-orbit" onClick={onScan}><span><Camera size={32}/><b>제품 스캔하기</b></span></button><button className="text-link" onClick={onSearch}>또는 제품명으로 직접 검색하기</button></div><section className="recent"><small>RECENTLY VIEWED</small><h2>최근 조회한 제품</h2><div className="cards"><ProductCard image={bagImage} title="MCM 비세토스 보스턴백" date="2026. 08. 12" detail="Italy · Visetos Heritage Canvas" onClick={onHeritage}/><ProductCard image={backpackImage} title="헤리티지 에디션 스타크 백팩" date="2026. 08. 10" detail="Italy · Stark Visetos Backpack" onClick={onHeritage}/></div></section><BottomNav/></div>; }
 function ProductCard({ image, title, date, detail, onClick }: { image: string; title: string; date: string; detail: string; onClick: () => void }) { return <button className="card" onClick={onClick}><img src={image} alt={title}/><span className="card-body"><b>{title}</b><span>{date}</span><small>{detail}</small></span></button>; }
 
-function ScanScreen({ onBack, onScan }: { onBack: () => void; onScan: () => void }) { return <div className="screen scan-screen"><Header back={onBack} title="제품 스캔"/><p className="scan-instruction">제품의 로고나 패턴이 프레임 중앙에 잘 보이도록 맞춰주세요.</p><div className="viewfinder"><div className="focus-box"/></div><div className="scan-footer"><p>자동으로 제품을 인식하고 헤리티지 분석이 시작됩니다.</p><button className="shutter" onClick={onScan} aria-label="제품 촬영하기"><Camera size={24}/></button></div></div>; }
+function ScanScreen({ onBack, onDetected }: { onBack: () => void; onDetected: (qrValue?: string) => void }) { const videoRef = useRef<HTMLVideoElement>(null); const detectedRef = useRef(false); const [cameraError, setCameraError] = useState("");
+  useEffect(() => { let stream: MediaStream | null = null; let timer = 0; const start = async () => { try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }); if (!videoRef.current) return; videoRef.current.srcObject = stream; await videoRef.current.play(); const Detector = (window as typeof window & { BarcodeDetector?: new (options: { formats: string[] }) => { detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>> } }).BarcodeDetector; if (!Detector) { setCameraError("이 브라우저는 QR 자동 인식을 지원하지 않습니다. 아래 시연 버튼을 이용해 주세요."); return; } const detector = new Detector({ formats: ["qr_code"] }); timer = window.setInterval(async () => { if (!videoRef.current || detectedRef.current) return; try { const codes = await detector.detect(videoRef.current); if (codes[0]?.rawValue) { detectedRef.current = true; onDetected(codes[0].rawValue); } } catch { /* 다음 프레임에서 다시 시도합니다. */ } }, 500); } catch { setCameraError("카메라 권한을 사용할 수 없습니다. 아래 시연 버튼을 이용해 주세요."); } }; start(); return () => { window.clearInterval(timer); stream?.getTracks().forEach(track => track.stop()); }; }, [onDetected]);
+  return <div className="screen scan-screen"><Header back={onBack} title="QR 제품 스캔"/><p className="scan-instruction">제품 QR 코드가 프레임 중앙에 보이도록 맞춰주세요.</p><div className="viewfinder camera-view"><video ref={videoRef} muted playsInline aria-label="QR 스캔 카메라"/><div className="focus-box"/></div><div className="scan-footer"><p>{cameraError || "QR을 인식하면 자동으로 헤리티지 분석이 시작됩니다."}</p><button className="demo-scan" onClick={() => onDetected("KOY-001")}>시연 제품으로 계속하기</button></div></div>; }
+
+function SearchScreen({ onBack, onSelect }: { onBack: () => void; onSelect: (product: ProductSummary) => void }) { const [query, setQuery] = useState(""); const [results, setResults] = useState<ProductSummary[]>([]); const [loading, setLoading] = useState(false); const [searched, setSearched] = useState(false); const [error, setError] = useState("");
+  const submit = async (event: FormEvent) => { event.preventDefault(); const value = query.trim(); if (!value || loading) return; setLoading(true); setError(""); setSearched(true); try { setResults((await searchProducts(value)).items); } catch (reason) { setResults([]); setError(errorMessage(reason)); } finally { setLoading(false); } };
+  return <div className="screen cream search-screen"><Header back={onBack} title="제품 검색" light/><form className="search-form" onSubmit={submit}><input value={query} onChange={event => setQuery(event.target.value)} placeholder="브랜드명 또는 제품명" aria-label="제품 검색어" autoFocus/><button type="submit" disabled={!query.trim() || loading}>{loading ? "검색 중" : "검색"}</button></form>{error && <p className="search-state">{error}</p>}{!error && searched && !loading && results.length === 0 && <p className="search-state">검색 결과가 없습니다.</p>}<div className="search-results">{results.map(result => <button key={result.id} className="search-result" onClick={() => onSelect(result)}><img src={productImage(result)} alt=""/><span><b>{result.brandName} {result.productName}</b><small>{result.summary}</small></span><CaretRight size={18}/></button>)}</div></div>; }
 function Recognizing({ error, onBack, onRetry }: { error: string; onBack: () => void; onRetry: () => void }) { return <div className="screen scan-screen"><Header back={onBack} title="제품 스캔"/><p className="scan-instruction">{error ? "제품 정보를 불러오지 못했어요" : "제품을 인식하고 있어요"}</p><div className={`viewfinder ${error ? "" : "blurred"}`}><div className={`focus-box ${error ? "" : "pulse"}`}/>{!error && <div className="spinner" aria-label="인식 중"/>}</div><div className="scan-footer"><p>{error || "백엔드의 검수된 제품 정보를 확인하고 있어요."}</p>{error && <button className="primary" onClick={onRetry}>다시 시도하기</button>}</div></div>; }
 function Success({ product, onNext }: { product: Product; onNext: () => void }) { return <div className="screen cream success"><div className="success-mark"><Sparkle size={28}/></div><small>PRODUCT IDENTIFIED</small><h1>{product.brandName}<br/>{product.productName}</h1><img src={productImage(product)} alt={`인식된 ${product.productName}`}/><p>제품을 찾았어요.<br/>이제 디자인에 담긴 이야기를 만나보세요.</p><button className="primary" onClick={onNext}>헤리티지 살펴보기 <CaretRight/></button></div>; }
 function Heritage({ product, heritage, onBack, onStory }: { product: Product; heritage: HeritageItem[]; onBack: () => void; onStory: () => void }) { const material = heritage.find(item => item.topic === "material"); const craft = heritage.find(item => item.topic === "craftsmanship"); return <div className="screen cream scroll"><Header back={onBack} title="제품 헤리티지" light/><img className="hero-bag" src={productImage(product)} alt={product.productName}/><article className="article"><small>VERIFIED HERITAGE ARCHIVE</small><h1>{product.brandName}<br/>{product.productName}</h1><p>{product.summary}</p><div className="facts"><span><small>ARCHIVE</small><b>{heritage.length} verified stories</b></span><span><small>PRODUCT CODE</small><b>{product.qrValue}</b></span></div><h2>{material?.title ?? craft?.title ?? "제품에 담긴 이야기"}</h2><p>{material?.content ?? craft?.content ?? "등록된 헤리티지 정보를 준비하고 있습니다."}</p><button className="primary" onClick={onStory}>도슨트 스토리 듣기 <CaretRight/></button></article></div>; }
