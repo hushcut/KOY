@@ -9,8 +9,12 @@ fi
 APP_DIR="/opt/koy/app"
 DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 
-sudo -u koy git -C "${APP_DIR}" fetch origin "${DEPLOY_BRANCH}"
-sudo -u koy git -C "${APP_DIR}" checkout "${DEPLOY_BRANCH}"
+sudo -u koy git -C "${APP_DIR}" fetch origin "${DEPLOY_BRANCH}:refs/remotes/origin/${DEPLOY_BRANCH}"
+if sudo -u koy git -C "${APP_DIR}" show-ref --verify --quiet "refs/heads/${DEPLOY_BRANCH}"; then
+  sudo -u koy git -C "${APP_DIR}" checkout "${DEPLOY_BRANCH}"
+else
+  sudo -u koy git -C "${APP_DIR}" checkout --branch "${DEPLOY_BRANCH}" --track "origin/${DEPLOY_BRANCH}"
+fi
 sudo -u koy git -C "${APP_DIR}" pull --ff-only origin "${DEPLOY_BRANCH}"
 
 sudo -u koy "${APP_DIR}/backend/.venv/bin/python" -m pip install -r "${APP_DIR}/backend/requirements.txt"
