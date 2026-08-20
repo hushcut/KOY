@@ -33,7 +33,15 @@ if [[ -z "${KOY_HOST}" ]]; then
   exit 1
 fi
 
-sed "s/__DOMAIN__/${KOY_HOST}/g" "${APP_DIR}/deploy/nginx/koy.conf" > /etc/nginx/sites-available/koy
+install -d -m 0755 /var/www/certbot/.well-known/acme-challenge
+CERTIFICATE_DIR="/etc/letsencrypt/live/${KOY_HOST}"
+if [[ -f "${CERTIFICATE_DIR}/fullchain.pem" && -f "${CERTIFICATE_DIR}/privkey.pem" ]]; then
+  sed -i "s|^FRONTEND_ORIGIN=.*$|FRONTEND_ORIGIN=https://${KOY_HOST}|" "${APP_DIR}/backend/.env"
+  chown koy:koy "${APP_DIR}/backend/.env"
+  sed "s/__DOMAIN__/${KOY_HOST}/g" "${APP_DIR}/deploy/nginx/koy-https.conf" > /etc/nginx/sites-available/koy
+else
+  sed "s/__DOMAIN__/${KOY_HOST}/g" "${APP_DIR}/deploy/nginx/koy.conf" > /etc/nginx/sites-available/koy
+fi
 nginx -t
 systemctl restart koy-backend koy-frontend
 systemctl reload nginx

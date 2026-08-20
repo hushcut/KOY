@@ -79,14 +79,25 @@ sudo bash deploy/scripts/02-first-deploy.sh
 - systemd 서비스 설치
 - Nginx 리버스 프록시 설치
 
-## 7. HTTPS 적용 (도메인이 있을 때만)
+## 7. HTTPS 적용
 
-공인 IP만 사용할 때는 이 단계를 건너뜁니다. 도메인을 연결한 경우에만 DNS와 HTTP 접속을 확인한 다음 실행합니다.
+도메인은 일반 인증서를 사용합니다.
 
 ```bash
 sudo certbot --nginx -d YOUR_DOMAIN --redirect
 sudo certbot renew --dry-run
 ```
+
+공인 IP는 Certbot 5.4 이상의 단기 IP 인증서를 사용합니다.
+
+```bash
+sudo certbot certonly --preferred-profile shortlived --webroot \
+  --webroot-path /var/www/certbot --ip-address YOUR_PUBLIC_IP \
+  --deploy-hook "systemctl reload nginx"
+sudo bash /opt/koy/app/deploy/scripts/03-update-app.sh
+```
+
+IP 인증서는 유효기간이 약 6일이므로 `snap.certbot.renew.timer`의 자동 갱신 상태를 확인합니다.
 
 브라우저 카메라는 보안 컨텍스트(HTTPS 또는 localhost)에서만 허용되므로 공인 IP의 HTTP 접속에서는 QR 카메라가 제한될 수 있습니다. 이 경우 앱의 `시연 제품으로 계속하기` 버튼을 사용합니다.
 
