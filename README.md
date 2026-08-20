@@ -131,13 +131,13 @@ cd frontend && npm run lint && npm run build
 
 ## 배포 및 업데이트
 
-최초 배포와 운영 명령은 [`deploy/README.md`](deploy/README.md)를 참고합니다. `integration`의 검증된 변경을 서버에 반영할 때는 다음을 실행합니다.
+최초 배포와 운영 명령은 [`deploy/README.md`](deploy/README.md)를 참고합니다. `main`의 검증된 변경을 서버에 반영할 때는 다음을 실행합니다.
 
 ```bash
 sudo bash /opt/koy/app/deploy/scripts/03-update-app.sh
 ```
 
-평가 제출 전 `integration`을 `main`에 병합하고 서버 배포 브랜치도 `main`으로 전환합니다.
+평가 제출본과 운영 서버는 `main` 브랜치를 기준으로 유지합니다.
 
 ## 팀 역할
 

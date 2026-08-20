@@ -7,7 +7,7 @@ if [[ "${EUID}" -ne 0 ]]; then
 fi
 
 APP_DIR="/opt/koy/app"
-DEPLOY_BRANCH="${DEPLOY_BRANCH:-integration}"
+DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 
 sudo -u koy git -C "${APP_DIR}" fetch origin "${DEPLOY_BRANCH}"
 sudo -u koy git -C "${APP_DIR}" checkout "${DEPLOY_BRANCH}"

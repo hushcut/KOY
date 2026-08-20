@@ -8,7 +8,7 @@ fi
 
 APP_DIR="/opt/koy/app"
 REPOSITORY_URL="${REPOSITORY_URL:-https://github.com/hushcut/KOY.git}"
-DEPLOY_BRANCH="${DEPLOY_BRANCH:-integration}"
+DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 
 read -r -p "Public host (domain or IP, example: 1.201.116.192): " KOY_HOST
 if [[ -z "${KOY_HOST}" || "${KOY_HOST}" == *"/"* || "${KOY_HOST}" == *" "* ]]; then

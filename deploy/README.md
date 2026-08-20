@@ -25,7 +25,7 @@ ssh -i key.pem ubuntu@PUBLIC_IP
 ```bash
 sudo apt-get update
 sudo apt-get install -y git
-git clone --branch integration https://github.com/hushcut/KOY.git
+git clone --branch main https://github.com/hushcut/KOY.git
 cd KOY
 ```
 
